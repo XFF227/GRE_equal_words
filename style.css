@@ -82,7 +82,7 @@ button {
 }
 
 .choices label {
-    font-size: 2rem;         /* 放大文字 */
+    font-size: 1.5rem;         /* 放大文字 */
     display: block;          /* 每个选项独占一行 */
     margin: 0.75rem 0;
 }
