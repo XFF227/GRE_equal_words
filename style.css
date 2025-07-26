@@ -82,9 +82,11 @@ button {
 }
 
 .choices label {
-    font-size: 1.5rem;         /* 放大文字 */
-    display: block;          /* 每个选项独占一行 */
-    margin: 0.5rem 0;
+    display: block;
+    font-size: 1rem;       /* 缩小字体 */
+    padding: 0.3rem 0.5rem;   /* 减少内边距 */
+    margin: 0.1rem 0;         /* 减少上下间距 */
+    line-height: 0.5;
 }
 
 .choices input[type="checkbox"] {
