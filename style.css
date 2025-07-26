@@ -84,7 +84,7 @@ button {
 .choices label {
     font-size: 1.5rem;         /* 放大文字 */
     display: block;          /* 每个选项独占一行 */
-    margin: 0.75rem 0;
+    margin: 0.5rem 0;
 }
 
 .choices input[type="checkbox"] {
