@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vocabulary Trainer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="flashcards" class="tab active"></div>
+<div id="quiz" class="tab">
+  <button onclick="startQuiz()">开始做题</button>
+  <div id="quizArea"></div>
+</div>
+<div id="wrong" class="tab">
+  <div id="wrongCards"></div>
+  <button onclick="startWrongReview()">开始错题训练</button>
+  <div id="wrongArea"></div>
+</div>
+
+<div class="nav">
+  <button onclick="switchTab('flashcards')">背词</button>
+  <button onclick="switchTab('quiz')">做题</button>
+  <button onclick="switchTab('wrong')">错题</button>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
