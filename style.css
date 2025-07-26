@@ -61,7 +61,14 @@ button {
     width: 100%;                 /* 在小屏幕上自动占满 */
     box-sizing: border-box;      /* 确保 padding 不撑破布局 */
 }
-
+.card strong {
+    font-size: 1.5rem;  /* 或根据需要更大，比如 1.8rem */
+    display: block;
+    margin-bottom: 1rem;
+    text-align: center;
+    font-weight: bold;
+    color: #333;
+}
 
 .choices button {
     margin: 0.5rem;
