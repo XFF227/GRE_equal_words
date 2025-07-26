@@ -56,11 +56,11 @@ body {
 .choices label {
     font-size: 2rem;         /* 放大文字 */
     display: block;          /* 每个选项独占一行 */
-    margin: 1rem 0;
+    margin: 0.75rem 0;
 }
 
 .choices input[type="checkbox"] {
-    transform: scale(2);   /* 放大复选框 */
+    transform: scale(1.5);   /* 放大复选框 */
     margin-right: 0.75rem;
     vertical-align: middle;
 }
