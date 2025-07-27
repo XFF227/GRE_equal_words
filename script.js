@@ -238,14 +238,12 @@ function submitWrongAnswer() {
     const isCorrect = q.correct.every(ans => selected.includes(ans));
 
     if (isCorrect) {
-        updateScore(q.correct, 1);
         selected.forEach(sel => {
             const match = [...labels].find(l => l.value === sel);
             if (match) match.parentElement.style.background = '#c8f7c5';
         });
         setTimeout(nextWrong, 1000);
     } else {
-        updateScore(q.correct, -1);
         selected.forEach(sel => {
             const match = [...labels].find(l => l.value === sel);
             if (match) match.parentElement.style.background = '#f8d7da';
@@ -259,6 +257,7 @@ function submitWrongAnswer() {
         const nextBtn = document.getElementById('nextWrongBtn');
         if (nextBtn) nextBtn.style.display = 'inline-block';
     }
+
 }
 
 function removeWrong(index) {
