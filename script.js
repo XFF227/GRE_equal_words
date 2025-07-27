@@ -260,8 +260,31 @@ function submitAnswer() {
         updateScore(correctWords, -1);
         recordWrong(meaning, correctWords);
         document.getElementById('nextQuizBtn').style.display = 'inline-block';
+
+        // ✅ 添加：答错后为所有英文选项显示中文释义
+        const allLabels = document.querySelectorAll('input[name="choice"]');
+        allLabels.forEach(input => {
+            const word = input.value;
+            const label = input.parentElement;
+
+            // 找到这个单词属于哪个组
+            const entry = Object.entries(data).find(([k, [words]]) => words.includes(word));
+            if (entry) {
+                const meaning = entry[1][1];
+                const span = document.createElement('span');
+                span.style.marginLeft = '0.5em';
+                span.style.color = '#999';
+                span.textContent = `(${meaning})`;
+
+                // 避免重复添加
+                if (!label.innerText.includes(meaning)) {
+                    label.appendChild(span);
+                }
+            }
+        });
     }
 }
+
 async function startWrongReview() {
     currentIndex = 0;
     document.getElementById('wrongCards').style.display = 'none';
@@ -370,9 +393,29 @@ function submitWrongAnswer() {
             const match = [...labels].find(l => l.value === sel);
             if (match) match.parentElement.style.background = '#f8d7da';
         });
+
         [...labels].forEach(l => {
             if (currentCorrect.includes(l.value)) {
                 l.parentElement.style.background = '#c8f7c5';
+            }
+        });
+
+        // ✅ 新增：为所有英文单词后添加中文释义
+        [...labels].forEach(input => {
+            const word = input.value;
+            const label = input.parentElement;
+
+            const entry = Object.entries(data).find(([k, [words]]) => words.includes(word));
+            if (entry) {
+                const meaning = entry[1][1];
+                const span = document.createElement('span');
+                span.style.marginLeft = '0.5em';
+                span.style.color = '#999';
+                span.textContent = `(${meaning})`;
+
+                if (!label.innerText.includes(meaning)) {
+                    label.appendChild(span);
+                }
             }
         });
 
@@ -380,6 +423,7 @@ function submitWrongAnswer() {
         if (nextBtn) nextBtn.style.display = 'inline-block';
     }
 }
+
 
 async function removeWrong(index) {
     window.wrongSet.splice(index, 1);
@@ -405,13 +449,31 @@ function iDontKnow() {
     // ✅ 高亮正确英文
     highlightEnglish(correctWords, [], "choice");
 
-    // 计为错题
+    // ✅ 添加所有英文选项的中文释义
+    const labels = document.querySelectorAll('input[name="choice"]');
+    labels.forEach(input => {
+        const word = input.value;
+        const label = input.parentElement;
+
+        const entry = Object.entries(data).find(([k, [words]]) => words.includes(word));
+        if (entry) {
+            const meaning = entry[1][1];
+            const span = document.createElement('span');
+            span.style.marginLeft = '0.5em';
+            span.style.color = '#999';
+            span.textContent = `(${meaning})`;
+
+            if (!label.innerText.includes(meaning)) {
+                label.appendChild(span);
+            }
+        }
+    });
+
     updateScore(correctWords, -1);
     recordWrong(meaning, correctWords);
 
     document.getElementById('nextQuizBtn').style.display = 'inline-block';
 }
-
 function iDontKnowWrong() {
     const correctKey = currentQuestion;
     const correctWords = currentCorrect;
@@ -422,10 +484,30 @@ function iDontKnowWrong() {
     // ✅ 高亮正确英文
     highlightEnglish(correctWords, [], "wrong_choice");
 
-    // 显示“下一题”按钮
+    // ✅ 添加所有英文选项的中文释义
+    const labels = document.querySelectorAll('input[name="wrong_choice"]');
+    labels.forEach(input => {
+        const word = input.value;
+        const label = input.parentElement;
+
+        const entry = Object.entries(data).find(([k, [words]]) => words.includes(word));
+        if (entry) {
+            const meaning = entry[1][1];
+            const span = document.createElement('span');
+            span.style.marginLeft = '0.5em';
+            span.style.color = '#999';
+            span.textContent = `(${meaning})`;
+
+            if (!label.innerText.includes(meaning)) {
+                label.appendChild(span);
+            }
+        }
+    });
+
     const nextBtn = document.getElementById('nextWrongBtn');
     if (nextBtn) nextBtn.style.display = 'inline-block';
 }
+
 
 async function updateScore(words, delta) {
     for (const w of words) {
