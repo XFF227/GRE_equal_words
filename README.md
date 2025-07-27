@@ -38,3 +38,5 @@ The data file `vocab_dict.json` should be a dictionary structured as:
   "2": [["wordA", "wordB", "wordC", "wordD"], "对应中文"],
   ...
 }
+
+Current json data is from Jiayi Zhu.
