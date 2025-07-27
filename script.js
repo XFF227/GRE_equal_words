@@ -6,6 +6,7 @@ let currentCorrect = [];
 let currentQuestion = null;
 let scoreDict = {};
 const SCORE_KEY = "scoreDict";
+let quizOrder = [];
 
 fetch('vocab_dict.json')
     .then(res => res.json())
@@ -135,18 +136,18 @@ function categorizeKeysByPriority() {
 
 function startQuiz() {
     currentIndex = 0;
+    quizOrder = categorizeKeysByPriority();  // 固定一次优先顺序
     document.getElementById('quizArea').innerHTML = '';
     nextQuiz();
 }
 
 function nextQuiz() {
-    const prioritizedKeys = categorizeKeysByPriority();
-    if (currentIndex >= prioritizedKeys.length) {
+    if (currentIndex >= quizOrder.length) {
         document.getElementById('quizArea').innerHTML = '<p>做题结束！</p>';
         return;
     }
 
-    const key = prioritizedKeys[currentIndex++];
+    const key = quizOrder[currentIndex++];
     currentQuestion = key;
     const [words, meaning] = data[key];
 
@@ -197,6 +198,7 @@ function nextQuiz() {
         <button id="nextQuizBtn" onclick="nextQuiz()" style="display:none;margin-top:1rem;">下一题</button>
       </div>`;
 }
+
 
 function submitAnswer() {
     const selectedWords = Array.from(document.querySelectorAll('input[name="choice"]:checked')).map(el => el.value);
