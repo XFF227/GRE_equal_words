@@ -1,35 +1,70 @@
-let data = {};
+const API_BASE = 'https://6885b254f52d34140f6a541d.mockapi.io/users';
 let keys = [];
+let data = {};
 let currentIndex = 0;
-let wrongSet = [];
 let currentCorrect = [];
 let currentQuestion = null;
-let scoreDict = {};
-const SCORE_KEY = "scoreDict";
 let quizOrder = [];
 
-fetch('vocab_dict.json')
-    .then(res => res.json())
-    .then(json => {
-        data = json;
-        keys = Object.keys(data);
-        initScoreDict();
-        renderFlashcards();
-    });
+window.onload = async function () {
+    await loadUserData();  // ⬅️ 加载远程用户数据
 
-function initScoreDict() {
-    const stored = localStorage.getItem(SCORE_KEY);
-    if (stored) {
-        scoreDict = JSON.parse(stored);
-    } else {
-        for (const k of keys) {
-            for (const word of data[k][0]) {
-                scoreDict[word] = 0;
-            }
+    const res = await fetch('vocab_dict.json');
+    data = await res.json();
+    keys = Object.keys(data);
+
+    renderFlashcards();  // 使用 scoreDict 和 wrongSet
+};
+
+
+async function loadUserData() {
+    const raw = localStorage.getItem("user");
+    if (!raw) {
+        alert("请先登录！");
+        location.href = "login.html";
+        return;
+    }
+
+    const localUser = JSON.parse(raw);
+    const username = localUser.username;
+
+    try {
+        const res = await fetch(`https://6885b254f52d34140f6a541d.mockapi.io/users?username=${username}`);
+        const users = await res.json();
+
+        if (users.length === 0) {
+            alert("用户不存在，请重新登录");
+            location.href = "login.html";
+            return;
         }
-        localStorage.setItem(SCORE_KEY, JSON.stringify(scoreDict));
+
+        const user = users[0];
+        window.user = user;               // 当前用户完整信息
+        window.userId = user.user;        // ⚠️ 注意：你的主键字段叫 user，不是 id
+        window.scoreDict = user.scoreDict || {};
+        window.wrongSet = user.wrongSet || [];
+
+    } catch (err) {
+        console.error("加载用户数据失败：", err);
+        alert("加载用户数据失败，请稍后重试");
     }
 }
+
+async function saveUserData() {
+    if (!window.userId) return;
+    console.log(window.scoreDict);
+    await fetch(`https://6885b254f52d34140f6a541d.mockapi.io/users/${window.userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            scoreDict: window.scoreDict,
+            wrongSet: window.wrongSet
+        })
+    });
+}
+
+
+
 
 function getColor(score) {
     if (score <= -5) return 'red';
@@ -50,11 +85,11 @@ function getLevelName(score) {
 }
 
 function minScore(words) {
-    return Math.min(...words.map(w => scoreDict[w] ?? 0));
+    return Math.min(...words.map(w => window.scoreDict[w] ?? 0));
 }
 
 function colorWord(word) {
-    const score = scoreDict[word] ?? 0;
+    const score = window.scoreDict[word] ?? 0;
     return `<span style="color:${getColor(score)}">${word}</span>`;
 }
 
@@ -88,25 +123,26 @@ function isCorrectAnswer(correctKey, selectedKey, correctWords, selectedWords) {
     return chineseCorrect && englishCorrect;
 }
 
-function recordWrong(meaning, correctWords) {
-    wrongSet.push({ meaning: meaning, correct: correctWords });
-    localStorage.setItem('wrongSet', JSON.stringify(wrongSet));
+async function recordWrong(meaning, correctWords) {
+    console.log(meaning);
+    window.wrongSet.push({ meaning: meaning, correct: correctWords });
+    await saveUserData();
 }
 
-function switchTab(tabId) {
+
+async function switchTab(tabId) {
     document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
 
     if (tabId === 'wrong') {
-        const saved = localStorage.getItem('wrongSet');
-        wrongSet = saved ? JSON.parse(saved) : [];
         const cardBox = document.getElementById('wrongCards');
         cardBox.style.display = 'block';
-        cardBox.innerHTML = wrongSet.map(q =>
+        cardBox.innerHTML = window.wrongSet.map(q =>
             `<div class="card"><strong>${q.meaning}</strong><br>${q.correct.map(colorWord).join(', ')}</div>`
         ).join('');
     }
 }
+
 
 function renderFlashcards() {
     const container = document.getElementById('flashcards');
@@ -124,7 +160,7 @@ function renderFlashcards() {
 function categorizeKeysByPriority() {
     const categories = { red: [], orange: [], black: [], blue: [], green: [] };
     for (const k of keys) {
-        const scoreMin = Math.min(...data[k][0].map(w => scoreDict[w] ?? 0));
+        const scoreMin = Math.min(...data[k][0].map(w => window.scoreDict[w] ?? 0));
         if (scoreMin <= -5) categories.red.push(k);
         else if (scoreMin <= -3) categories.orange.push(k);
         else if (scoreMin === 0) categories.black.push(k);
@@ -153,7 +189,7 @@ function nextQuiz() {
 
     currentCorrect = words
         .slice()
-        .sort((a, b) => (scoreDict[a] ?? 0) - (scoreDict[b] ?? 0))
+        .sort((a, b) => (window.scoreDict[a] ?? 0) - (window.scoreDict[b] ?? 0))
         .slice(0, 2);
 
     let distractorKey;
@@ -226,26 +262,24 @@ function submitAnswer() {
         document.getElementById('nextQuizBtn').style.display = 'inline-block';
     }
 }
-function startWrongReview() {
-    const saved = localStorage.getItem('wrongSet');
-    wrongSet = saved ? JSON.parse(saved) : [];
+async function startWrongReview() {
     currentIndex = 0;
-
     document.getElementById('wrongCards').style.display = 'none';
     document.getElementById('wrongArea').innerHTML = '';
     nextWrong();
 }
 
+
 function nextWrong() {
     const container = document.getElementById('wrongArea');
     container.innerHTML = '';
 
-    if (currentIndex >= wrongSet.length) {
+    if (currentIndex >= window.wrongSet.length) {
         container.innerHTML = '<p>错题训练结束！</p>';
         return;
     }
 
-    const q = wrongSet[currentIndex++];
+    const q = window.wrongSet[currentIndex++];
     const correctKey = Object.keys(data).find(k => data[k][1] === q.meaning);
     const correctWords = data[correctKey][0];
 
@@ -270,7 +304,7 @@ function nextWrong() {
         .map(k => ({ key: k, meaning: data[k][1] }))
         .sort(() => Math.random() - 0.5);
 
-    const correct = correctWords.slice().sort((a, b) => (scoreDict[a] ?? 0) - (scoreDict[b] ?? 0)).slice(0, 2);
+    const correct = correctWords.slice().sort((a, b) => (window.scoreDict[a] ?? 0) - (window.scoreDict[b] ?? 0)).slice(0, 2);
     const distractorWords = data[distractorKey][0].slice(0, 1);
     const fillerWords = keys
         .flatMap(k => data[k][0])
@@ -347,12 +381,13 @@ function submitWrongAnswer() {
     }
 }
 
-function removeWrong(index) {
-    wrongSet.splice(index, 1);
-    localStorage.setItem('wrongSet', JSON.stringify(wrongSet));
+async function removeWrong(index) {
+    window.wrongSet.splice(index, 1);
+    await saveUserData();
     currentIndex = Math.max(0, currentIndex - 1);
     nextWrong();
 }
+
 
 function exitWrongReview() {
     document.getElementById('wrongArea').innerHTML = '';
@@ -392,9 +427,40 @@ function iDontKnowWrong() {
     if (nextBtn) nextBtn.style.display = 'inline-block';
 }
 
-function updateScore(words, delta) {
+async function updateScore(words, delta) {
     for (const w of words) {
-        scoreDict[w] = (scoreDict[w] ?? 0) + delta;
+        window.scoreDict[w] = (window.scoreDict[w] ?? 0) + delta;
     }
-    localStorage.setItem(SCORE_KEY, JSON.stringify(scoreDict));
+    await saveUserData();
 }
+
+
+window.switchTab = switchTab;
+window.startQuiz = startQuiz;
+window.nextQuiz = nextQuiz;
+window.submitAnswer = submitAnswer;
+window.iDontKnow = iDontKnow;
+
+window.startWrongReview = startWrongReview;
+window.nextWrong = nextWrong;
+window.submitWrongAnswer = submitWrongAnswer;
+window.iDontKnowWrong = iDontKnowWrong;
+window.removeWrong = removeWrong;
+window.exitWrongReview = exitWrongReview;
+
+window.updateScore = updateScore;
+window.recordWrong = recordWrong;
+
+window.getColor = getColor;
+window.getLevelName = getLevelName;
+window.minScore = minScore;
+window.colorWord = colorWord;
+window.plainWord = plainWord;
+window.highlightChinese = highlightChinese;
+window.highlightEnglish = highlightEnglish;
+window.isCorrectAnswer = isCorrectAnswer;
+
+window.renderFlashcards = renderFlashcards;
+window.categorizeKeysByPriority = categorizeKeysByPriority;
+window.saveUserData = saveUserData;
+window.loadUserData = loadUserData;
