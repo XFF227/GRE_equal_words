@@ -92,15 +92,16 @@ function renderFlashcards() {
 function categorizeKeysByPriority() {
     const categories = { red: [], orange: [], black: [], blue: [], green: [] };
     for (const k of keys) {
-        const scoreAvg = avgScore(data[k][0]);
-        if (scoreAvg <= -5) categories.red.push(k);
-        else if (scoreAvg <= -3) categories.orange.push(k);
-        else if (scoreAvg === 0) categories.black.push(k);
-        else if (scoreAvg <= 3) categories.blue.push(k);
+        const scoreMin = Math.min(...data[k][0].map(w => scoreDict[w] ?? 0));
+        if (scoreMin <= -5) categories.red.push(k);
+        else if (scoreMin <= -3) categories.orange.push(k);
+        else if (scoreMin === 0) categories.black.push(k);
+        else if (scoreMin <= 3) categories.blue.push(k);
         else categories.green.push(k);
     }
     return [...categories.red, ...categories.orange, ...categories.black, ...categories.blue, ...categories.green];
 }
+
 
 function startQuiz() {
     currentIndex = 0;
