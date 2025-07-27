@@ -61,6 +61,37 @@ function plainWord(word) {
     return word;
 }
 
+function highlightChinese(correctKey, selectedKey, prefix) {
+    const correctLabel = document.getElementById(`${prefix}_${correctKey}`);
+    const selectedLabel = document.getElementById(`${prefix}_${selectedKey}`);
+    if (correctLabel) correctLabel.style.background = '#c8f7c5'; // 正确：绿色
+    if (selectedKey !== correctKey && selectedLabel) selectedLabel.style.background = '#f8d7da'; // 错选：红色
+}
+
+function highlightEnglish(correctWords, selectedWords, inputName) {
+    const labels = document.querySelectorAll(`input[name="${inputName}"]`);
+    selectedWords.forEach(sel => {
+        const label = [...labels].find(l => l.value === sel);
+        if (label) label.parentElement.style.background = correctWords.includes(sel) ? '#c8f7c5' : '#f8d7da';
+    });
+    [...labels].forEach(l => {
+        if (correctWords.includes(l.value)) {
+            l.parentElement.style.background = '#c8f7c5';
+        }
+    });
+}
+
+function isCorrectAnswer(correctKey, selectedKey, correctWords, selectedWords) {
+    const chineseCorrect = correctKey === selectedKey;
+    const englishCorrect = correctWords.every(w => selectedWords.includes(w));
+    return chineseCorrect && englishCorrect;
+}
+
+function recordWrong(meaning, correctWords) {
+    wrongSet.push({ meaning: meaning, correct: correctWords });
+    localStorage.setItem('wrongSet', JSON.stringify(wrongSet));
+}
+
 function switchTab(tabId) {
     document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
@@ -150,24 +181,21 @@ function nextQuiz() {
       <div class='card'>
         <strong>选择两个英文词和对应的一个中文释义</strong>
         <div class="chinese-options">
-        ${chineseOptions.map(opt =>
-        `<label id="chinese_${opt.key}"><input type="radio" name="chinese_choice" value="${opt.key}"> ${opt.meaning}</label>`).join('')}
-      </div>
-        
+          ${chineseOptions.map(opt =>
+        `<label id="chinese_${opt.key}"><input type="radio" name="chinese_choice" value="${opt.key}"> ${opt.meaning}</label>`
+    ).join('')}
+        </div>
+
         <div class='choices'>
           ${allWords.map(w =>
-        `<label><input type="checkbox" name="choice" value="${w}"> ${plainWord(w)}</label>`).join('<br>')}
+        `<label><input type="checkbox" name="choice" value="${w}"> ${plainWord(w)}</label>`
+    ).join('<br>')}
         </div>
+
         <button onclick="submitAnswer()">提交</button>
+        <button onclick="iDontKnow()" style="margin-left:10px;background:#eee;">我不会</button>
         <button id="nextQuizBtn" onclick="nextQuiz()" style="display:none;margin-top:1rem;">下一题</button>
       </div>`;
-}
-
-function updateScore(words, delta) {
-    for (const w of words) {
-        scoreDict[w] = (scoreDict[w] ?? 0) + delta;
-    }
-    localStorage.setItem(SCORE_KEY, JSON.stringify(scoreDict));
 }
 
 function submitAnswer() {
@@ -179,49 +207,23 @@ function submitAnswer() {
         return;
     }
 
-    const labels = document.querySelectorAll('input[name="choice"]');
-    const isChineseCorrect = selectedChinese.value === currentQuestion;
-    const isWordsCorrect = currentCorrect.every(w => selectedWords.includes(w));
+    const selectedKey = selectedChinese.value;
+    const correctKey = currentQuestion;
+    const correctWords = currentCorrect;
+    const meaning = data[correctKey][1];
 
-    const selectedChineseKey = selectedChinese.value;
-    const correctChineseLabel = document.getElementById(`chinese_${currentQuestion}`);
-    const chosenChineseLabel = document.getElementById(`chinese_${selectedChineseKey}`);
+    highlightChinese(correctKey, selectedKey, 'chinese');
+    highlightEnglish(correctWords, selectedWords, 'choice');
 
-    if (correctChineseLabel) correctChineseLabel.style.background = '#c8f7c5';
-    if (!isChineseCorrect && chosenChineseLabel) chosenChineseLabel.style.background = '#f8d7da';
-
-    if (isChineseCorrect && isWordsCorrect) {
-        updateScore(currentCorrect, 1);
-        selectedWords.forEach(sel => {
-            const match = [...labels].find(l => l.value === sel);
-            if (match) match.parentElement.style.background = '#c8f7c5';
-        });
+    if (isCorrectAnswer(correctKey, selectedKey, correctWords, selectedWords)) {
+        updateScore(correctWords, 1);
         setTimeout(nextQuiz, 1000);
     } else {
-        updateScore(currentCorrect, -1);
-
-        // ✅ 保存错题
-        wrongSet.push({
-            meaning: data[currentQuestion][1],
-            correct: currentCorrect
-        });
-        localStorage.setItem('wrongSet', JSON.stringify(wrongSet));
-
-        selectedWords.forEach(sel => {
-            const match = [...labels].find(l => l.value === sel);
-            if (match) match.parentElement.style.background = '#f8d7da';
-        });
-        [...labels].forEach(l => {
-            if (currentCorrect.includes(l.value)) {
-                l.parentElement.style.background = '#c8f7c5';
-            }
-        });
-
-        const nextBtn = document.getElementById('nextQuizBtn');
-        if (nextBtn) nextBtn.style.display = 'inline-block';
+        updateScore(correctWords, -1);
+        recordWrong(meaning, correctWords);
+        document.getElementById('nextQuizBtn').style.display = 'inline-block';
     }
 }
-
 function startWrongReview() {
     const saved = localStorage.getItem('wrongSet');
     wrongSet = saved ? JSON.parse(saved) : [];
@@ -282,23 +284,24 @@ function nextWrong() {
     const form = document.createElement('div');
     form.className = 'card';
     form.innerHTML = `
-      <strong>选择两个英文词和对应的一个中文释义</strong>
-      <div class="chinese-options">
-        ${chineseOptions.map(opt =>
-        `<label id="wrong_chinese_${opt.key}"><input type="radio" name="chinese_choice" value="${opt.key}"> ${opt.meaning}</label>`).join('')}
-      </div>
-      <div class='choices'>
-        ${allOptions.map(o => `<label><input type="checkbox" name="wrong_choice" value="${o}"> ${plainWord(o)}</label>`).join('<br>')}
-      </div>
-      <button onclick="submitWrongAnswer()">提交</button>
-      <button id="nextWrongBtn" onclick="nextWrong()" style="display:none;margin-top:1rem;">下一题</button>
-      <button onclick="removeWrong(${currentIndex - 1})" style="margin-top:1rem;">删除本题</button>
-      <button onclick="exitWrongReview()" style="margin-top:1rem;background:#ccc;">退出训练</button>
-    `;
+  <strong>选择两个英文词和对应的一个中文释义</strong>
+  <div class="chinese-options">
+    ${chineseOptions.map(opt =>
+        `<label id="wrong_chinese_${opt.key}"><input type="radio" name="chinese_choice" value="${opt.key}"> ${opt.meaning}</label>`
+    ).join('')}
+  </div>
+  <div class='choices'>
+    ${allOptions.map(o => `<label><input type="checkbox" name="wrong_choice" value="${o}"> ${plainWord(o)}</label>`).join('<br>')}
+  </div>
+  <button onclick="submitWrongAnswer()">提交</button>
+  <button onclick="iDontKnowWrong()" style="margin-left:10px;background:#eee;">我不会</button>
+  <button id="nextWrongBtn" onclick="nextWrong()" style="display:none;margin-top:1rem;">下一题</button>
+  <button onclick="removeWrong(${currentIndex - 1})" style="margin-top:1rem;">删除本题</button>
+  <button onclick="exitWrongReview()" style="margin-top:1rem;background:#ccc;">退出训练</button>
+`;
 
     container.appendChild(form);
 }
-
 
 function submitWrongAnswer() {
     const selectedWords = Array.from(document.querySelectorAll('input[name="wrong_choice"]:checked')).map(el => el.value);
@@ -342,7 +345,6 @@ function submitWrongAnswer() {
     }
 }
 
-
 function removeWrong(index) {
     wrongSet.splice(index, 1);
     localStorage.setItem('wrongSet', JSON.stringify(wrongSet));
@@ -353,4 +355,44 @@ function removeWrong(index) {
 function exitWrongReview() {
     document.getElementById('wrongArea').innerHTML = '';
     document.getElementById('wrongCards').style.display = 'block';
+}
+
+function iDontKnow() {
+    const correctKey = currentQuestion;
+    const correctWords = currentCorrect;
+    const meaning = data[correctKey][1];
+
+    // ✅ 高亮正确中文
+    highlightChinese(correctKey, correctKey, "chinese");
+
+    // ✅ 高亮正确英文
+    highlightEnglish(correctWords, [], "choice");
+
+    // 计为错题
+    updateScore(correctWords, -1);
+    recordWrong(meaning, correctWords);
+
+    document.getElementById('nextQuizBtn').style.display = 'inline-block';
+}
+
+function iDontKnowWrong() {
+    const correctKey = currentQuestion;
+    const correctWords = currentCorrect;
+
+    // ✅ 高亮正确中文
+    highlightChinese(correctKey, correctKey, "wrong_chinese");
+
+    // ✅ 高亮正确英文
+    highlightEnglish(correctWords, [], "wrong_choice");
+
+    // 显示“下一题”按钮
+    const nextBtn = document.getElementById('nextWrongBtn');
+    if (nextBtn) nextBtn.style.display = 'inline-block';
+}
+
+function updateScore(words, delta) {
+    for (const w of words) {
+        scoreDict[w] = (scoreDict[w] ?? 0) + delta;
+    }
+    localStorage.setItem(SCORE_KEY, JSON.stringify(scoreDict));
 }
