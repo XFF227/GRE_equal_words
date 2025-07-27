@@ -94,3 +94,24 @@ button {
     margin-right: 0.75rem;
     vertical-align: middle;
 }
+
+.chinese-options {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 1rem;
+}
+
+.chinese-options label {
+    font-size: 1.2rem;
+    font-weight: bold;
+    padding: 0.5rem 1rem;
+    background: #e0e0e0;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.chinese-options input[type="radio"] {
+    transform: scale(1.5);
+    margin-right: 0.5rem;
+    vertical-align: middle;
+}

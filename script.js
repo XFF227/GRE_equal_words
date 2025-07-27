@@ -33,7 +33,7 @@ function initScoreDict() {
 function getColor(score) {
     if (score <= -5) return 'red';
     if (score <= -3) return 'orange';
-    if (score < 0) return 'orange'; // 黄色改橙色
+    if (score < 0) return 'orange';
     if (score === 0) return 'black';
     if (score <= 3) return 'blue';
     return 'green';
@@ -51,7 +51,6 @@ function getLevelName(score) {
 function minScore(words) {
     return Math.min(...words.map(w => scoreDict[w] ?? 0));
 }
-
 
 function colorWord(word) {
     const score = scoreDict[word] ?? 0;
@@ -103,7 +102,6 @@ function categorizeKeysByPriority() {
     return [...categories.red, ...categories.orange, ...categories.black, ...categories.blue, ...categories.green];
 }
 
-
 function startQuiz() {
     currentIndex = 0;
     document.getElementById('quizArea').innerHTML = '';
@@ -126,26 +124,38 @@ function nextQuiz() {
         .sort((a, b) => (scoreDict[a] ?? 0) - (scoreDict[b] ?? 0))
         .slice(0, 2);
 
-    let distractors = [];
-    while (distractors.length < 4) {
-        const randKey = keys[Math.floor(Math.random() * keys.length)];
-        if (randKey !== key) {
-            distractors.push(...data[randKey][0].slice(0, 1));
-        }
-    }
+    let distractorKey;
+    do {
+        distractorKey = keys[Math.floor(Math.random() * keys.length)];
+    } while (
+        distractorKey === key ||
+        data[distractorKey][0].some(w => currentCorrect.includes(w))
+        );
 
-    const options = [...currentCorrect, ...distractors.slice(0, 4)].sort(() => Math.random() - 0.5);
+    const chineseOptions = [key, distractorKey]
+        .map(k => ({ key: k, meaning: data[k][1] }))
+        .sort(() => Math.random() - 0.5);
+
+    const distractors = data[distractorKey][0].slice(0, 2);
+    const allWords = [...currentCorrect, ...distractors].sort(() => Math.random() - 0.5);
+
     const container = document.getElementById('quizArea');
-    container.innerHTML = `<div class='card'>
-    <strong>${meaning}</strong>
-    <div class='choices'>
-      ${options.map(o => `<label><input type="checkbox" name="choice" value="${o}"> ${plainWord(o)}</label>`).join('<br>')}
-    </div>
-    <button onclick="submitAnswer()">提交</button>
-    <button id="nextQuizBtn" onclick="nextQuiz()" style="display:none;margin-top:1rem;">下一题</button>
-  </div>`;
+    container.innerHTML = `
+      <div class='card'>
+        <strong>选择两个英文词和对应的一个中文释义</strong>
+        <div class="chinese-options">
+        ${chineseOptions.map(opt =>
+        `<label><input type="radio" name="chinese_choice" value="${opt.key}"> ${opt.meaning}</label>`).join('')}
+      </div>
+        
+        <div class='choices'>
+          ${allWords.map(w =>
+        `<label><input type="checkbox" name="choice" value="${w}"> ${plainWord(w)}</label>`).join('<br>')}
+        </div>
+        <button onclick="submitAnswer()">提交</button>
+        <button id="nextQuizBtn" onclick="nextQuiz()" style="display:none;margin-top:1rem;">下一题</button>
+      </div>`;
 }
-
 
 function updateScore(words, delta) {
     for (const w of words) {
@@ -155,26 +165,28 @@ function updateScore(words, delta) {
 }
 
 function submitAnswer() {
-    const selected = Array.from(document.querySelectorAll('input[name="choice"]:checked')).map(el => el.value);
-    if (selected.length !== 2) {
-        alert("请选择两个答案！");
+    const selectedWords = Array.from(document.querySelectorAll('input[name="choice"]:checked')).map(el => el.value);
+    const selectedChinese = document.querySelector('input[name="chinese_choice"]:checked');
+
+    if (selectedWords.length !== 2 || !selectedChinese) {
+        alert("请选择两个英文和一个中文！");
         return;
     }
 
     const labels = document.querySelectorAll('input[name="choice"]');
-    const isCorrect = currentCorrect.every(ans => selected.includes(ans));
-    const [words, meaning] = data[currentQuestion];
+    const isChineseCorrect = selectedChinese.value === currentQuestion;
+    const isWordsCorrect = currentCorrect.every(w => selectedWords.includes(w));
 
-    if (isCorrect) {
+    if (isChineseCorrect && isWordsCorrect) {
         updateScore(currentCorrect, 1);
-        selected.forEach(sel => {
+        selectedWords.forEach(sel => {
             const match = [...labels].find(l => l.value === sel);
             if (match) match.parentElement.style.background = '#c8f7c5';
         });
         setTimeout(nextQuiz, 1000);
     } else {
         updateScore(currentCorrect, -1);
-        selected.forEach(sel => {
+        selectedWords.forEach(sel => {
             const match = [...labels].find(l => l.value === sel);
             if (match) match.parentElement.style.background = '#f8d7da';
         });
@@ -183,11 +195,6 @@ function submitAnswer() {
                 l.parentElement.style.background = '#c8f7c5';
             }
         });
-
-        if (!wrongSet.some(q => q.meaning === meaning)) {
-            wrongSet.push({ meaning, correct: currentCorrect });
-            localStorage.setItem('wrongSet', JSON.stringify(wrongSet));
-        }
 
         const nextBtn = document.getElementById('nextQuizBtn');
         if (nextBtn) nextBtn.style.display = 'inline-block';
@@ -214,15 +221,53 @@ function nextWrong() {
     }
 
     const q = wrongSet[currentIndex++];
-    const distractors = keys.flatMap(k => data[k][0]).filter(w => !q.correct.includes(w));
-    const options = [...q.correct, ...distractors.sort(() => 0.5 - Math.random()).slice(0, 4)].sort(() => Math.random() - 0.5);
+    const correctKey = Object.keys(data).find(k => data[k][1] === q.meaning);
+    const correctWords = data[correctKey][0];
+
+    let distractorKey = null;
+    const availableKeys = keys.filter(k => k !== correctKey);
+    for (let i = 0; i < 50; i++) {
+        const candidate = availableKeys[Math.floor(Math.random() * availableKeys.length)];
+        const candidateWords = data[candidate][0];
+        const overlap = candidateWords.filter(w => correctWords.includes(w));
+        if (overlap.length === 0 && candidateWords.length <= 5) {
+            distractorKey = candidate;
+            break;
+        }
+    }
+
+    if (!distractorKey) {
+        nextWrong();
+        return;
+    }
+
+    const chineseOptions = [correctKey, distractorKey]
+        .map(k => ({ key: k, meaning: data[k][1] }))
+        .sort(() => Math.random() - 0.5);
+
+    const correct = correctWords.slice().sort((a, b) => (scoreDict[a] ?? 0) - (scoreDict[b] ?? 0)).slice(0, 2);
+    const distractorWords = data[distractorKey][0].slice(0, 1);
+    const fillerWords = keys
+        .flatMap(k => data[k][0])
+        .filter(w => !correct.includes(w) && !distractorWords.includes(w) && !correctWords.includes(w))
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 3);
+
+    const allOptions = [...correct, ...distractorWords, ...fillerWords].sort(() => Math.random() - 0.5);
+
+    currentQuestion = correctKey;
+    currentCorrect = correct;
 
     const form = document.createElement('div');
     form.className = 'card';
     form.innerHTML = `
-      <strong>${q.meaning}</strong>
+      <strong>选择两个英文词和对应的一个中文释义</strong>
+      <div class="chinese-options">
+        ${chineseOptions.map(opt =>
+        `<label><input type="radio" name="chinese_choice" value="${opt.key}"> ${opt.meaning}</label>`).join('')}
+      </div>
       <div class='choices'>
-        ${options.map(o => `<label><input type="checkbox" name="wrong_choice" value="${o}"> ${plainWord(o)}</label>`).join('<br>')}
+        ${allOptions.map(o => `<label><input type="checkbox" name="wrong_choice" value="${o}"> ${plainWord(o)}</label>`).join('<br>')}
       </div>
       <button onclick="submitWrongAnswer()">提交</button>
       <button id="nextWrongBtn" onclick="nextWrong()" style="display:none;margin-top:1rem;">下一题</button>
@@ -234,29 +279,31 @@ function nextWrong() {
 }
 
 function submitWrongAnswer() {
-    const selected = Array.from(document.querySelectorAll('input[name="wrong_choice"]:checked')).map(el => el.value);
-    if (selected.length !== 2) {
-        alert("请选择两个答案！");
+    const selectedWords = Array.from(document.querySelectorAll('input[name="wrong_choice"]:checked')).map(el => el.value);
+    const selectedChinese = document.querySelector('input[name="chinese_choice"]:checked');
+
+    if (selectedWords.length !== 2 || !selectedChinese) {
+        alert("请选择两个英文和一个中文！");
         return;
     }
 
     const labels = document.querySelectorAll('input[name="wrong_choice"]');
-    const q = wrongSet[currentIndex - 1];
-    const isCorrect = q.correct.every(ans => selected.includes(ans));
+    const isChineseCorrect = selectedChinese.value === currentQuestion;
+    const isWordsCorrect = currentCorrect.every(w => selectedWords.includes(w));
 
-    if (isCorrect) {
-        selected.forEach(sel => {
+    if (isChineseCorrect && isWordsCorrect) {
+        selectedWords.forEach(sel => {
             const match = [...labels].find(l => l.value === sel);
             if (match) match.parentElement.style.background = '#c8f7c5';
         });
         setTimeout(nextWrong, 1000);
     } else {
-        selected.forEach(sel => {
+        selectedWords.forEach(sel => {
             const match = [...labels].find(l => l.value === sel);
             if (match) match.parentElement.style.background = '#f8d7da';
         });
         [...labels].forEach(l => {
-            if (q.correct.includes(l.value)) {
+            if (currentCorrect.includes(l.value)) {
                 l.parentElement.style.background = '#c8f7c5';
             }
         });
@@ -264,7 +311,6 @@ function submitWrongAnswer() {
         const nextBtn = document.getElementById('nextWrongBtn');
         if (nextBtn) nextBtn.style.display = 'inline-block';
     }
-
 }
 
 function removeWrong(index) {
