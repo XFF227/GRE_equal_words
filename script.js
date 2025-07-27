@@ -118,7 +118,11 @@ function nextQuiz() {
     const key = prioritizedKeys[currentIndex++];
     currentQuestion = key;
     const [words, meaning] = data[key];
-    currentCorrect = words.slice().sort(() => Math.random() - 0.5).slice(0, 2);
+
+    currentCorrect = words
+        .slice()
+        .sort((a, b) => (scoreDict[a] ?? 0) - (scoreDict[b] ?? 0))
+        .slice(0, 2);
 
     let distractors = [];
     while (distractors.length < 4) {
@@ -139,6 +143,7 @@ function nextQuiz() {
     <button id="nextQuizBtn" onclick="nextQuiz()" style="display:none;margin-top:1rem;">下一题</button>
   </div>`;
 }
+
 
 function updateScore(words, delta) {
     for (const w of words) {
