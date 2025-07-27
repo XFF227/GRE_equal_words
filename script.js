@@ -48,9 +48,10 @@ function getLevelName(score) {
     return '精通';
 }
 
-function avgScore(words) {
-    return words.reduce((sum, w) => sum + (scoreDict[w] ?? 0), 0) / words.length;
+function minScore(words) {
+    return Math.min(...words.map(w => scoreDict[w] ?? 0));
 }
+
 
 function colorWord(word) {
     const score = scoreDict[word] ?? 0;
@@ -80,7 +81,7 @@ function renderFlashcards() {
     const container = document.getElementById('flashcards');
     container.innerHTML = keys.map(k => {
         const [words, meaning] = data[k];
-        const avg = avgScore(words);
+        const avg = minScore(words);
         return `<div class="card">
           <strong>${meaning}</strong><br>
           掌握程度：<span style="color:${getColor(avg)}">${getLevelName(avg)}</span><br>
