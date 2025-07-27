@@ -136,8 +136,14 @@ function nextQuiz() {
         .map(k => ({ key: k, meaning: data[k][1] }))
         .sort(() => Math.random() - 0.5);
 
-    const distractors = data[distractorKey][0].slice(0, 2);
-    const allWords = [...currentCorrect, ...distractors].sort(() => Math.random() - 0.5);
+    const distractorWords = data[distractorKey][0];
+    const fillerWords = keys
+        .flatMap(k => data[k][0])
+        .filter(w => !currentCorrect.includes(w) && !distractorWords.includes(w))
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 4);
+
+    const allWords = [...currentCorrect, ...fillerWords].sort(() => Math.random() - 0.5);
 
     const container = document.getElementById('quizArea');
     container.innerHTML = `
@@ -145,7 +151,7 @@ function nextQuiz() {
         <strong>选择两个英文词和对应的一个中文释义</strong>
         <div class="chinese-options">
         ${chineseOptions.map(opt =>
-        `<label><input type="radio" name="chinese_choice" value="${opt.key}"> ${opt.meaning}</label>`).join('')}
+        `<label id="chinese_${opt.key}"><input type="radio" name="chinese_choice" value="${opt.key}"> ${opt.meaning}</label>`).join('')}
       </div>
         
         <div class='choices'>
@@ -177,6 +183,13 @@ function submitAnswer() {
     const isChineseCorrect = selectedChinese.value === currentQuestion;
     const isWordsCorrect = currentCorrect.every(w => selectedWords.includes(w));
 
+    const selectedChineseKey = selectedChinese.value;
+    const correctChineseLabel = document.getElementById(`chinese_${currentQuestion}`);
+    const chosenChineseLabel = document.getElementById(`chinese_${selectedChineseKey}`);
+
+    if (correctChineseLabel) correctChineseLabel.style.background = '#c8f7c5';
+    if (!isChineseCorrect && chosenChineseLabel) chosenChineseLabel.style.background = '#f8d7da';
+
     if (isChineseCorrect && isWordsCorrect) {
         updateScore(currentCorrect, 1);
         selectedWords.forEach(sel => {
@@ -186,6 +199,14 @@ function submitAnswer() {
         setTimeout(nextQuiz, 1000);
     } else {
         updateScore(currentCorrect, -1);
+
+        // ✅ 保存错题
+        wrongSet.push({
+            meaning: data[currentQuestion][1],
+            correct: currentCorrect
+        });
+        localStorage.setItem('wrongSet', JSON.stringify(wrongSet));
+
         selectedWords.forEach(sel => {
             const match = [...labels].find(l => l.value === sel);
             if (match) match.parentElement.style.background = '#f8d7da';
@@ -264,7 +285,7 @@ function nextWrong() {
       <strong>选择两个英文词和对应的一个中文释义</strong>
       <div class="chinese-options">
         ${chineseOptions.map(opt =>
-        `<label><input type="radio" name="chinese_choice" value="${opt.key}"> ${opt.meaning}</label>`).join('')}
+        `<label id="wrong_chinese_${opt.key}"><input type="radio" name="chinese_choice" value="${opt.key}"> ${opt.meaning}</label>`).join('')}
       </div>
       <div class='choices'>
         ${allOptions.map(o => `<label><input type="checkbox" name="wrong_choice" value="${o}"> ${plainWord(o)}</label>`).join('<br>')}
@@ -278,6 +299,7 @@ function nextWrong() {
     container.appendChild(form);
 }
 
+
 function submitWrongAnswer() {
     const selectedWords = Array.from(document.querySelectorAll('input[name="wrong_choice"]:checked')).map(el => el.value);
     const selectedChinese = document.querySelector('input[name="chinese_choice"]:checked');
@@ -290,6 +312,13 @@ function submitWrongAnswer() {
     const labels = document.querySelectorAll('input[name="wrong_choice"]');
     const isChineseCorrect = selectedChinese.value === currentQuestion;
     const isWordsCorrect = currentCorrect.every(w => selectedWords.includes(w));
+
+    const selectedChineseKey = selectedChinese.value;
+    const correctChineseLabel = document.getElementById(`wrong_chinese_${currentQuestion}`);
+    const chosenChineseLabel = document.getElementById(`wrong_chinese_${selectedChineseKey}`);
+
+    if (correctChineseLabel) correctChineseLabel.style.background = '#c8f7c5';
+    if (!isChineseCorrect && chosenChineseLabel) chosenChineseLabel.style.background = '#f8d7da';
 
     if (isChineseCorrect && isWordsCorrect) {
         selectedWords.forEach(sel => {
@@ -312,6 +341,7 @@ function submitWrongAnswer() {
         if (nextBtn) nextBtn.style.display = 'inline-block';
     }
 }
+
 
 function removeWrong(index) {
     wrongSet.splice(index, 1);
