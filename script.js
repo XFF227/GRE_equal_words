@@ -9,12 +9,22 @@ let quizOrder = [];
 window.onload = async function () {
     await loadUserData();  // ⬅️ 加载远程用户数据
 
-    const res = await fetch('vocab_dict.json');
-    data = await res.json();
+    const res = await fetch('https://6885b254f52d34140f6a541d.mockapi.io/users?username=vocab');
+    const apiData = await res.json();
+    if (apiData.length === 0) {
+        console.error("未找到用户名为 vocab 的用户数据");
+        return;
+    }
+
+    const userObj = apiData[0];
+    data = userObj.wrongSet;  // ✅ 保持原样结构，无任何格式变动
     keys = Object.keys(data);
 
-    renderFlashcards();  // 使用 scoreDict 和 wrongSet
+    renderFlashcards();  // 使用 data 和 keys
 };
+
+
+
 
 
 async function loadUserData() {
@@ -131,6 +141,13 @@ async function recordWrong(meaning, correctWords) {
 
 
 async function switchTab(tabId) {
+    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+
+    if (tabId === 'wrong') {
+        const addBtn = document.getElementById('addWrongBtn');
+        if (addBtn) addBtn.style.display = 'inline-block'; // ✅ 回到错题标签时显示
+    }
     document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
 
@@ -287,6 +304,7 @@ function submitAnswer() {
 
 async function startWrongReview() {
     currentIndex = 0;
+    document.getElementById('addWrongBtn').style.display = 'none';
     document.getElementById('wrongCards').style.display = 'none';
     document.getElementById('wrongArea').innerHTML = '';
     nextWrong();
@@ -515,6 +533,36 @@ async function updateScore(words, delta) {
     }
     await saveUserData();
 }
+
+// 添加错题按钮
+function addWrongButton() {
+    const container = document.getElementById('wrongArea');
+    if (!container) return;
+
+    const btn = document.createElement('button');
+    btn.textContent = "添加错题";
+    btn.onclick = addWrongManually;
+    container.appendChild(btn);
+}
+
+// 弹出输入框并解析数据
+async function addWrongManually() {
+    const input = prompt("请输入错题数据（格式：word1=word2,中文\\nword3=word4,中文）");
+    if (!input) return;
+
+    const lines = input.split(/\n/).map(l => l.trim()).filter(l => l);
+    for (const line of lines) {
+        const [wordsPart, chinese] = line.split(',');
+        if (!wordsPart || !chinese) continue;
+        const words = wordsPart.split('=').map(w => w.trim());
+        window.wrongSet.push({ meaning: chinese.trim(), correct: words });
+    }
+
+    await saveUserData();
+    alert("错题已添加并上传");
+    renderWrongCards(); // 刷新错题显示（如果有此函数）
+}
+
 
 
 window.switchTab = switchTab;
